@@ -1,0 +1,1172 @@
+{
+  "name": "Pipeline Contenido - Generacion",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -32
+      ],
+      "id": "c99797d2-bc7d-45fc-ac1f-3a146a83c19a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "authentication": "airtableTokenApi",
+        "baseId": {
+          "__rl": true,
+          "value": "appOkpANoG8PS38Cm",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "tblmKLH8qHYtGCwcV",
+          "mode": "id"
+        },
+        "triggerField": "Última modificación",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.airtableTrigger",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        160
+      ],
+      "id": "48f3419f-906b-4090-adf4-377e6cbcd084",
+      "name": "Airtable Trigger",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c07e93bd-11aa-46c1-9756-e108a048b88a",
+              "leftValue": "={{ $json.fields.Estado.trim().toLowerCase() }}",
+              "rightValue": "generando",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        16,
+        160
+      ],
+      "id": "339dea25-7eee-4564-a244-c914485e17c5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst raw = item.output?.[0]?.content?.[0]?.text || item.message || item.content || item.text || item.data || JSON.stringify(item);\nlet cleaned = String(raw).trim();\ncleaned = cleaned.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();\nlet parsed;\ntry {\n    parsed = JSON.parse(cleaned);\n} catch (e) {\n    parsed = { categoria: 'Objetos Decorativos', completa: false };\n}\nconst categoriasValidas = ['Alfombras', 'Cuadros y Arte', 'Textiles', 'Objetos Decorativos'];\nconst categoria = categoriasValidas.includes(parsed.categoria) ? parsed.categoria : 'Objetos Decorativos';\nreturn [{ json: { categoria, completa: parsed.completa === true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        176
+      ],
+      "id": "40da3222-c52b-4401-a6ec-56d85b242513",
+      "name": "Parsear respuesta Triage"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "29f372c8-76c7-4a87-b743-9c31973f5f3f",
+              "name": "id",
+              "value": "={{  $('Airtable Trigger').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "9f3bc757-9cd1-48de-a381-04d604a09cbc",
+              "name": "Estado",
+              "value": "Rechazado",
+              "type": "string"
+            },
+            {
+              "id": "4460cb69-5e58-4401-a96b-37918af1a5c0",
+              "name": "Categoría (IA)",
+              "value": "={{  $('Parsear respuesta Triage').item.json.categoria }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        704,
+        192
+      ],
+      "id": "f0be43b5-f2b0-45fe-99e5-0be6a6c4c8f8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59779e47-a8a1-4c15-ac3c-de2f4d8b30a8",
+              "leftValue": "={{ $json.completa }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        512,
+        112
+      ],
+      "id": "89812464-9ff1-47a4-9470-b32efb5ebedb",
+      "name": "Idea completa?"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "=system",
+              "content": "Sos un clasificador de ideas de contenido para redes sociales de un e-commerce de decoracion de hogar. Analiza la idea semilla que te pasa el usuario y devolve SOLO un JSON valido, sin texto adicional ni markdown, con este formato exacto: {\"categoria\": \"<una de: Alfombras, Cuadros y Arte, Textiles, Objetos Decorativos>\", \"completa\": <true o false>}. completa=true solo si la idea tiene informacion suficiente (producto, beneficio o mensaje concreto) para redactar una publicacion sin inventar datos. Si es vaga o le falta contexto, completa=false."
+            },
+            {
+              "content": "={{  $('Airtable Trigger').item.json.fields['Idea Semilla'] }} }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        -128
+      ],
+      "id": "301c62e7-05e9-4fd5-91ae-fda825c6e148",
+      "name": "Triage IA (barato) - Clasificar Idea",
+      "credentials": {
+        "openAiApi": {
+          "id": "qq8XXUzB13fMxLVL",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "=3d9b3ee7e4bb80fab40b000b9a584ca1",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        688,
+        0
+      ],
+      "id": "c569e9f5-a8a5-47eb-a7c1-c69e2c28867f",
+      "name": "Buscar Contexto RAG",
+      "retryOnFail": true,
+      "credentials": {
+        "notionApi": {
+          "id": "JF44fAhwIDtpk7s9",
+          "name": "Notion account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst bloques = items.map((item) => {\n  const data = item.json;\n  const tema = data.property_tema || data.Tema || data.tema || 'Sin tema';\n  const contenido = data.property_contenido || data.Contenido || data.contenido || '';\n  return '### ' + tema + '\\n' + contenido;\n});\nconst contexto_rag = bloques.join('\\n\\n');\nreturn [{ json: { contexto_rag } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -144
+      ],
+      "id": "86661995-0bd8-4c42-8abb-d8e7909bfc95",
+      "name": "Agregar Contexto RAG"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "id"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Sos un copywriter experto en redes sociales para una tienda de e-commerce de decoracion de hogar. Tu tarea es generar contenido para Instagram basandote UNICAMENTE en la idea semilla, la categoria del producto y el contexto de marca (RAG) que se te proporcionan. No inventes datos, precios, promociones ni caracteristicas de producto que no esten en el contexto RAG. Si el contexto RAG no cubre algun aspecto, mantene el copy generico sin inventar detalles.\n\nFormato de salida obligatorio (sin texto adicional antes o despues, sin markdown):\nCOPY: texto del posteo, tono cercano y aspiracional, entre 3 y 5 lineas\nHASHTAGS: entre 8 y 12 hashtags relevantes separados por espacio, sin numerar\nCTA: una sola frase de llamada a la accion\n\nNo agregues explicaciones, saludos ni comentarios fuera de este formato."
+            },
+            {
+              "content": "=Idea semilla: {{ $('Airtable Trigger').item.json.fields['Idea Semilla'] }}\nCategoria: {{ $('Parsear respuesta Triage').item.json.categoria }}\n\nContexto de marca (RAG):\n{{ $json.contexto_rag }}\n\nGenera el posteo de Instagram siguiendo el formato indicado en las instrucciones del sistema."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1072,
+        -144
+      ],
+      "id": "0f960f38-6c7a-4d8a-a64a-b8d3517600d8",
+      "name": "Generar Copy IA (principal)",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "qq8XXUzB13fMxLVL",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d777fc50-afe8-4465-939a-0b992fe2f074",
+              "name": "id",
+              "value": "{{ $('Airtable Trigger').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "8a5dc202-a486-43a6-8b32-b32aac8fe28b",
+              "name": "Fecha última ejecución",
+              "value": "{{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "8e84447d-cf4a-4f7f-a332-be2fcbedaa42",
+              "name": "Estado",
+              "value": "En revisión",
+              "type": "string"
+            },
+            {
+              "id": "e79cd7b9-de3a-4002-ae16-d7b073d3db67",
+              "name": "Borrador generado",
+              "value": "={{ $json.output?.[0]?.content?.[0]?.text || $json.content || $json.message?.content || $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1392,
+        -160
+      ],
+      "id": "54fbde66-32c3-4431-91bf-b36f5fa3ee48",
+      "name": "Preparar Borrador"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appOkpANoG8PS38Cm",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblmKLH8qHYtGCwcV",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Aprobado": false,
+            "Idea completa (IA)": false,
+            "id": "={{  $('Airtable Trigger').item.json.id  }}",
+            "Borrador generado": "={{ $json['Borrador generado'] }}",
+            "Fecha última ejecución": "={{  $now.toISO()  }}",
+            "Estado": "=En revisión"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Idea Semilla",
+              "displayName": "Idea Semilla",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Borrador generado",
+              "displayName": "Borrador generado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Generando",
+                  "value": "Generando"
+                },
+                {
+                  "name": "En revisión",
+                  "value": "En revisión"
+                },
+                {
+                  "name": "Aprobado",
+                  "value": "Aprobado"
+                },
+                {
+                  "name": "Rechazado",
+                  "value": "Rechazado"
+                },
+                {
+                  "name": "Publicado",
+                  "value": "Publicado"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Aprobado",
+              "displayName": "Aprobado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha última ejecución",
+              "displayName": "Fecha última ejecución",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Última modificación",
+              "displayName": "Última modificación",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Categoría (IA)",
+              "displayName": "Categoría (IA)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Alfombras",
+                  "value": "Alfombras"
+                },
+                {
+                  "name": "Cuadros y Arte",
+                  "value": "Cuadros y Arte"
+                },
+                {
+                  "name": "Textiles",
+                  "value": "Textiles"
+                },
+                {
+                  "name": "Objetos Decorativos",
+                  "value": "Objetos Decorativos"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Idea completa (IA)",
+              "displayName": "Idea completa (IA)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Log de Errores",
+              "displayName": "Log de Errores",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        -160
+      ],
+      "id": "a3b2b5f2-dae2-4365-a1fd-6ee3b1ab687a",
+      "name": "Guardar Borrador",
+      "retryOnFail": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "antoniolandriel@gmail.com",
+        "subject": "Aprobación requerida: nuevo borrador de contenido",
+        "message": "=Nuevo borrador de contenido listo para revisión:\n\n{{ $('Preparar Borrador').item.json['Borrador generado'] }}\n\nIdea semilla: {{ $('Airtable Trigger').item.json.fields['Idea Semilla'] }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 45,
+              "resumeUnit": "minutes"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        -160
+      ],
+      "id": "2a9f342a-2514-478d-92a9-7614d07a5679",
+      "name": "Solicitar Aprobación",
+      "webhookId": "f90bc0fc-40ed-49bc-b9d8-bde63d99e259",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WxK6MZFCmp09ixxN",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "54be7c22-2a4f-4d64-b81a-b03f51cf598e",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2000,
+        -160
+      ],
+      "id": "0518357f-83dc-48ac-abdb-9e448e084520",
+      "name": "¿Aprobado?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "16908793-2ba5-4a6b-ab3f-ffd6260dd058",
+              "name": "id",
+              "value": "={{ $('Airtable Trigger').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5f1aa803-98f1-404f-b6de-3e8615252bec",
+              "name": "Estado",
+              "value": "Publicado",
+              "type": "string"
+            },
+            {
+              "id": "360795fb-b5d7-4c23-a26e-7dbe9935e832",
+              "name": "Aprobado",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2192,
+        -160
+      ],
+      "id": "5857796a-01e6-46fc-9c15-cc6d2143f973",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7be2913d-77d8-4b8d-b82e-1d697f752222",
+              "name": "id",
+              "value": "={{  $('Airtable Trigger').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "6bf96053-5086-449d-b56c-49d64fe920dc",
+              "name": "Estado",
+              "value": "Rechazado",
+              "type": "string"
+            },
+            {
+              "id": "0b59c91d-5a85-44ec-a80b-5d30e5ff9833",
+              "name": "Aprobado",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2208,
+        32
+      ],
+      "id": "c66ca023-91a7-4fff-ae50-2341e1d8c3ab",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f0d4b19-a53e-45f9-9c17-48b029f4c9c8",
+              "name": "Timestamp",
+              "value": "={{  $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "275c8ba2-67b6-4c1c-aa20-5b118810326e",
+              "name": "Registro relacionado",
+              "value": "={{  [$('Airtable Trigger').item.json.id] }}",
+              "type": "array"
+            },
+            {
+              "id": "46f88dcd-1882-46ea-8371-a1196535d6d5",
+              "name": "Tipo de error",
+              "value": "API IA",
+              "type": "string"
+            },
+            {
+              "id": "b98722df-9304-4d88-845b-f564d95b2457",
+              "name": "Mensaje de error",
+              "value": "={{  $json.error.message }}",
+              "type": "string"
+            },
+            {
+              "id": "1a2e6898-7fd6-4421-9c32-64b3cf5b9002",
+              "name": "Reintentos",
+              "value": 3,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1392,
+        112
+      ],
+      "id": "17c161d3-7496-40a9-a926-8a58f9e65237",
+      "name": "Preparar Log Error - IA"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f0d4b19-a53e-45f9-9c17-48b029f4c9c8",
+              "name": "Timestamp",
+              "value": "={{  $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "275c8ba2-67b6-4c1c-aa20-5b118810326e",
+              "name": "Registro relacionado",
+              "value": "={{  [$('Airtable Trigger').item.json.id] }}",
+              "type": "array"
+            },
+            {
+              "id": "46f88dcd-1882-46ea-8371-a1196535d6d5",
+              "name": "Tipo de error",
+              "value": "API Notion",
+              "type": "string"
+            },
+            {
+              "id": "b98722df-9304-4d88-845b-f564d95b2457",
+              "name": "Mensaje de error",
+              "value": "={{  $json.error.message }}",
+              "type": "string"
+            },
+            {
+              "id": "1a2e6898-7fd6-4421-9c32-64b3cf5b9002",
+              "name": "Reintentos",
+              "value": 3,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        912,
+        112
+      ],
+      "id": "f7e5497c-0dc8-418b-a36a-b7f732cf5172",
+      "name": "Preparar Log Error - Notion"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f0d4b19-a53e-45f9-9c17-48b029f4c9c8",
+              "name": "Timestamp",
+              "value": "={{  $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "275c8ba2-67b6-4c1c-aa20-5b118810326e",
+              "name": "Registro relacionado",
+              "value": "={{  [$('Airtable Trigger').item.json.id] }}",
+              "type": "array"
+            },
+            {
+              "id": "46f88dcd-1882-46ea-8371-a1196535d6d5",
+              "name": "Tipo de error",
+              "value": "API Airtable",
+              "type": "string"
+            },
+            {
+              "id": "b98722df-9304-4d88-845b-f564d95b2457",
+              "name": "Mensaje de error",
+              "value": "={{  $json.error.message }}",
+              "type": "string"
+            },
+            {
+              "id": "1a2e6898-7fd6-4421-9c32-64b3cf5b9002",
+              "name": "Reintentos",
+              "value": 3,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1616,
+        64
+      ],
+      "id": "6397af63-013a-4a94-946d-5ce0594d9427",
+      "name": "Preparar Log Error - Airtable"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOkpANoG8PS38Cm",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl7JWqTMluyxIoYy",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        256
+      ],
+      "id": "d0f6e813-c354-44da-b469-012d7bc8d73a",
+      "name": "Registrar Error",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appOkpANoG8PS38Cm/tblmKLH8qHYtGCwcV/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"fields\": {\"Estado\": \"{{ $json.Estado }}\", \"Categoría (IA)\": \"{{  $json['Categoría (IA)'] }}\"}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        704,
+        432
+      ],
+      "id": "17743143-004e-45c9-86ac-05bc938b388b",
+      "name": "HTTP Request",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appOkpANoG8PS38Cm/tblmKLH8qHYtGCwcV/{{  $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"fields\": {\"Estado\": \"{{ $json.Estado }}\", \"Aprobado\": {{  $json.Aprobado }}}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2416,
+        -160
+      ],
+      "id": "97e7a7a4-fbb1-4233-9fe0-afcdf381638f",
+      "name": "HTTP Request1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appOkpANoG8PS38Cm/tblmKLH8qHYtGCwcV/{{  $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"fields\": {\"Estado\": \"{{ $json.Estado }}\", \"Aprobado\": {{  $json.Aprobado }}}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2432,
+        32
+      ],
+      "id": "021046e5-dea2-43ab-b61d-0081d88c199d",
+      "name": "HTTP Request2",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "86fQjKzxEiV1xHdP",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Airtable Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Triage IA (barato) - Clasificar Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear respuesta Triage": {
+      "main": [
+        [
+          {
+            "node": "Idea completa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Idea completa?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contexto RAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage IA (barato) - Clasificar Idea": {
+      "main": [
+        [
+          {
+            "node": "Parsear respuesta Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contexto RAG": {
+      "main": [
+        [
+          {
+            "node": "Agregar Contexto RAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Log Error - Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agregar Contexto RAG": {
+      "main": [
+        [
+          {
+            "node": "Generar Copy IA (principal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Copy IA (principal)": {
+      "main": [
+        [
+          {
+            "node": "Preparar Borrador",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Log Error - IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Borrador": {
+      "main": [
+        [
+          {
+            "node": "Guardar Borrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Borrador": {
+      "main": [
+        [
+          {
+            "node": "Solicitar Aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Log Error - Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar Aprobación": {
+      "main": [
+        [
+          {
+            "node": "¿Aprobado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Aprobado?": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Log Error - IA": {
+      "main": [
+        [
+          {
+            "node": "Registrar Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Log Error - Notion": {
+      "main": [
+        [
+          {
+            "node": "Registrar Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Log Error - Airtable": {
+      "main": [
+        [
+          {
+            "node": "Registrar Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "59769448-f20b-40df-9ef2-c3a3cb65e5ce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4b682dac2e7655374784491e63131e5527d0a6ee9d0b0f79e44b75430ad70ba0"
+  },
+  "nodeGroups": [],
+  "id": "CIjFUJyizAYXy5jt",
+  "tags": []
+}
